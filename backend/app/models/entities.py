@@ -137,6 +137,10 @@ class Submission(Base):
     student = relationship("User", back_populates="submissions")
     post = relationship("SocialPost", back_populates="submission", uselist=False)
 
+    @property
+    def coach_video_url(self):
+        return self.exercise.coach_video_url if self.exercise else None
+
 class SocialPost(Base):
     """
     Ràng buộc Slide 6 & 7:

@@ -14,6 +14,7 @@ export interface SubmissionResponse {
   exercise_id: number;
   student_id: number;
   student_video_url: string;
+  coach_video_url?: string;
   fused_video_url?: string;
   status: SubmissionStatus;
   score?: number;

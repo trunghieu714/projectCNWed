@@ -135,7 +135,7 @@ export default function SubmissionResultPage() {
 
       {/* Dual Synchronized Video Player */}
       <DualVideoPlayer
-        coachVideoUrl="storage/coach_samples/coach_sample.mp4"
+        coachVideoUrl={submission.coach_video_url || "storage/coach_samples/coach_1_sample_coach.mp4"}
         studentVideoUrl={submission.student_video_url}
         fusedVideoUrl={submission.fused_video_url}
         score={submission.score}

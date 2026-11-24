@@ -45,7 +45,11 @@ app.add_middleware(
 async def stream_storage_file(file_path: str, request: Request):
     full_path = os.path.join("storage", file_path)
     if not os.path.isfile(full_path):
-        raise HTTPException(status_code=404, detail="Không tìm thấy tệp.")
+        alt_path = os.path.join("backend", "storage", file_path)
+        if os.path.isfile(alt_path):
+            full_path = alt_path
+        else:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tệp.")
 
     real_root = os.path.realpath("storage")
     if not os.path.realpath(full_path).startswith(real_root + os.sep):

@@ -14,6 +14,7 @@ class SubmissionResponse(BaseModel):
     exercise_id: int
     student_id: int
     student_video_url: str
+    coach_video_url: Optional[str] = None
     fused_video_url: Optional[str] = None
     status: str
     score: Optional[float] = None

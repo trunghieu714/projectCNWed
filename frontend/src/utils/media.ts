@@ -10,8 +10,9 @@ export function getVideoUrl(path?: string | null): string {
     return path;
   }
 
-  // Chuẩn hóa dấu gạch chéo đầu đường dẫn
-  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  // Chuẩn hóa dấu gạch chéo ngược trên Windows thành gạch chéo xuôi
+  const normalized = path.replace(/\\/g, "/");
+  const cleanPath = normalized.startsWith("/") ? normalized.slice(1) : normalized;
 
   // Lấy gốc domain của Backend (mặc định http://localhost:8000)
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
