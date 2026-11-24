@@ -29,8 +29,19 @@ class YoloPoseEstimator(BasePoseEstimator):
             raise PoseNotAvailable("Chưa cài thư viện ultralytics (pip install ultralytics)") from e
         try:
             self.model = YOLO(self.weights)
-        except Exception as e:
-            raise PoseNotAvailable(f"Không nạp được trọng số YOLO {self.weights}: {e}") from e
+        except Exception:
+            # Fallback sang trọng số tiêu chuẩn của Ultralytics nếu tên weights không tồn tại
+            loaded = False
+            for fb in ("yolo11x-pose.pt", "yolov8x-pose.pt", "yolo11n-pose.pt", "yolov8n-pose.pt"):
+                try:
+                    self.model = YOLO(fb)
+                    self.weights = fb
+                    loaded = True
+                    break
+                except Exception:
+                    continue
+            if not loaded:
+                raise PoseNotAvailable(f"Không nạp được trọng số YOLO: {self.weights}")
         self.is_loaded = True
 
     def extract_poses(self, video_path: str) -> Dict[str, Any]:
