@@ -83,6 +83,6 @@ class Settings(BaseSettings):
     def estimator_chain(self) -> List[str]:
         return [x.strip().lower() for x in self.AI_ESTIMATOR_TYPE.split(",") if x.strip()]
 
-    model_config = SettingsConfigDict(env_file=".env", extra="allow", case_sensitive=True, populate_by_name=True)
+    model_config = SettingsConfigDict(env_file=(".env", "backend/.env", "../.env"), extra="allow", case_sensitive=True, populate_by_name=True)
 
 settings = Settings()

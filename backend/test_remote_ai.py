@@ -51,12 +51,23 @@ def main():
         sys.exit(1)
 
     # 2. Extract pose check (POST /extract)
-    sample_video = os.path.join(current_dir, "storage", "coach_samples", "coach_sample.mp4")
-    if not os.path.exists(sample_video):
-        # Fallback thử tìm trong uploads
-        import glob
-        vids = glob.glob(os.path.join(current_dir, "storage", "**", "*.mp4"), recursive=True)
-        sample_video = vids[0] if vids else None
+    # Ưu tiên dùng video quay người thật thay vì video người que vẽ nét
+    import glob
+    real_vids = [
+        os.path.join(current_dir, "storage", "coach_samples", "coach_1_fused_output.mp4"),
+        os.path.join(current_dir, "storage", "uploads", "post_u2_left_7283996808e2.mp4"),
+    ]
+    sample_video = None
+    for rv in real_vids:
+        if os.path.exists(rv):
+            sample_video = rv
+            break
+    if not sample_video:
+        all_vids = glob.glob(os.path.join(current_dir, "storage", "**", "*.mp4"), recursive=True)
+        for v in all_vids:
+            if "coach_sample.mp4" not in v and os.path.getsize(v) > 100000:
+                sample_video = v
+                break
 
     if not sample_video or not os.path.exists(sample_video):
         print("\n[2/2] Bỏ qua kiểm tra trích xuất video vì không tìm thấy file mp4 mẫu.")
