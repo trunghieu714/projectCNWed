@@ -77,9 +77,18 @@ def set_push_settings(ctx: Ctx = Depends(get_ctx)):
 
 # ---------------------------------------------------------------------------------------------- chat
 @router.post("/set_conversation")
+@router.post("/set_send_message")
 def set_conversation(ctx: Ctx = Depends(get_ctx)):
-    """Gửi tin nhắn. Input: token, partner_id, content."""
-    return ok(ChatService(ctx.db).send(ctx.user, ctx.p.int("partner_id", required=True), ctx.p.str("content", required=True)))
+    """Gửi tin nhắn. Input: token, partner_id hoặc conversation_id, content (hoặc message như server 20252)."""
+    chat = ChatService(ctx.db)
+    partner_id = ctx.p.int("partner_id")
+    if partner_id is None:
+        conversation_id = ctx.p.int("conversation_id")
+        if conversation_id is None:
+            raise ApiError("1002", "Thiếu partner_id hoặc conversation_id.")
+        partner_id = chat._partner_id(chat.find(ctx.user, conversation_id=conversation_id), ctx.user.id)
+    content = ctx.p.str("content") if ctx.p.raw("content") is not None else ctx.p.str("message", required=True)
+    return ok(chat.send(ctx.user, partner_id, content))
 
 @router.post("/get_list_conversation")
 def get_list_conversation(ctx: Ctx = Depends(get_ctx)):

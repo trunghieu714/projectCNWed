@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     # Prefix của bộ API theo đúng đặc tả restful_api (POST api/<tên_api>)
     API_SPEC_STR: str = "/api"
+    # Prefix tương thích server kỳ 20252 (Mercari-server: POST it4788/<tên_api>); để trống để tắt
+    API_COMPAT_STR: str = "/it4788"
     APP_VERSION: str = "1.2.0"
 
     # Database
@@ -58,6 +60,10 @@ class Settings(BaseSettings):
     # URL server AI (Colab / máy có GPU chạy WHAM/GVHMR) - FAQ Q5
     AI_REMOTE_URL: Optional[str] = None
     AI_REMOTE_TIMEOUT: int = 900
+    # Khóa gửi kèm header X-API-Key tới pose server (trùng POSE_SERVER_KEY in ra ở notebook Colab)
+    AI_REMOTE_API_KEY: Optional[str] = None
+    # Chu kỳ hỏi trạng thái job (giây); GVHMR chạy vài phút, vượt giới hạn 100s/request của Cloudflare tunnel
+    AI_REMOTE_POLL_INTERVAL: float = 5.0
     # Trọng số YOLO pose (YOLO26x theo đề, có thể thay bằng yolo11n-pose.pt khi máy yếu)
     YOLO_POSE_WEIGHTS: str = "yolo26x-pose.pt"
     # File hiệu chỉnh 2 camera (ma trận chiếu P1, P2) để fusion 2 bộ pose2D thành 3D (Slide 10)

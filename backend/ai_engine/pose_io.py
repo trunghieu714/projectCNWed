@@ -235,10 +235,28 @@ def load_raw(path: str) -> Any:
         return torch.load(path, map_location="cpu", weights_only=False)
     raise PoseNotAvailable(f"Không hỗ trợ định dạng pose {ext}")
 
+def _gvhmr_joints(obj: Any) -> Optional[np.ndarray]:
+    """hmr4d_results.pt của GVHMR: ưu tiên smpl_params_global (hệ trọng lực), sau đó smpl_params_incam."""
+    if not isinstance(obj, dict):
+        return None
+    for key in ("smpl_params_global", "smpl_params_incam"):
+        params = obj.get(key)
+        if not isinstance(params, dict):
+            continue
+        go, bp = _to_numpy(params.get("global_orient")), _to_numpy(params.get("body_pose"))
+        if go is None or bp is None or go.shape[0] != bp.shape[0] or go.shape[0] < 2:
+            continue
+        n = go.shape[0]
+        return smpl_forward_kinematics(np.concatenate([go.reshape(n, -1), bp.reshape(n, -1)], axis=1))
+    return None
+
 def extract_joints(obj: Any) -> np.ndarray:
     """Từ một object bất kỳ (kết quả WHAM/GVHMR/TCPFormer/JSON) -> mảng khớp 3D (N, J, 3)."""
     if isinstance(obj, np.ndarray) and obj.dtype == object and obj.shape == ():
         obj = obj.item()
+    gvhmr = _gvhmr_joints(obj)
+    if gvhmr is not None:
+        return gvhmr
     # WHAM: {subject_id: {...}} -> chọn người xuất hiện nhiều frame nhất
     if isinstance(obj, dict) and obj and all(isinstance(k, (int, np.integer)) for k in obj.keys()):
         obj = max(obj.values(), key=lambda v: len(v.get("frame_ids", [])) if isinstance(v, dict) else 0)

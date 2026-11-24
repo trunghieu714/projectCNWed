@@ -32,7 +32,9 @@ class AIEngineFactory:
         if model_type == "yolo":
             return YoloPoseEstimator(weights=config.get("yolo_weights", "yolo26x-pose.pt"), config=config)
         if model_type == "remote":
-            return RemotePoseEstimator(base_url=config.get("remote_url"), timeout=config.get("remote_timeout", 900), config=config)
+            return RemotePoseEstimator(base_url=config.get("remote_url"), timeout=config.get("remote_timeout", 900),
+                                       api_key=config.get("remote_api_key"),
+                                       poll_interval=config.get("remote_poll_interval", 5.0), config=config)
         if model_type == "tcpformer":
             return TCPFormerAdapter(config=config)
         raise ValueError(f"Không hỗ trợ mô hình: {model_type}")
@@ -64,6 +66,8 @@ class AIEngineFactory:
         config = {
             "remote_url": getattr(settings, "AI_REMOTE_URL", None),
             "remote_timeout": getattr(settings, "AI_REMOTE_TIMEOUT", 900),
+            "remote_api_key": getattr(settings, "AI_REMOTE_API_KEY", None),
+            "remote_poll_interval": getattr(settings, "AI_REMOTE_POLL_INTERVAL", 5.0),
             "yolo_weights": getattr(settings, "YOLO_POSE_WEIGHTS", "yolo26x-pose.pt"),
             "search_dirs": [getattr(settings, "POSE_CACHE_DIR", "storage/pose_cache")],
         }

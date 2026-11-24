@@ -218,6 +218,25 @@ def test_like_report_search_block_chat():
     types = {n["type"] for n in api("get_notification", b["token"]).json()["data"]["notifications"]}
     assert {"like", "message", "enrollment_request"} <= types
 
+def test_compat_prefix_and_aliases_of_server_20252():
+    """Client của kỳ 20252 gọi POST it4788/<tên_api>, like_post và set_send_message (message, conversation_id)."""
+    s = suffix()
+    a = register("HV", f"hvc{s}")
+    b = register("GV", f"gvc{s}")
+    pid = api("add_post", b["token"], described="Bài mẫu").json()["data"]["id"]
+
+    r = client.post("/it4788/like_post", data={"token": a["token"], "id": str(pid)}).json()
+    assert r["code"] == "1000" and r["data"] == {"like": 1, "is_liked": True}
+    assert client.post("/it4788/get_post", data={"token": a["token"], "id": str(pid)}).json()["data"]["is_liked"] is True
+
+    assert api("set_send_message", a["token"], partner_id=b["id"], message="Chào thầy").json()["code"] == "1000"
+    conv_id = api("get_list_conversation", b["token"]).json()["data"]["conversations"][0]["id"]
+    r = client.post("/it4788/set_send_message", data={"token": b["token"], "conversation_id": str(conv_id), "message": "Chào em"})
+    assert r.json()["code"] == "1000"
+    msgs = [m["message"] for m in api("get_conversation", a["token"], partner_id=b["id"]).json()["data"]["conversation"]]
+    assert {"Chào thầy", "Chào em"} <= set(msgs)
+    assert api("set_send_message", a["token"], message="?").json()["code"] == "1002"
+
 def test_push_settings_and_misc():
     a = register("HV", f"hvp{suffix()}")
     assert api("get_push_settings", a["token"]).json()["data"]["sound_mode"] == 1

@@ -77,6 +77,7 @@ def set_comment(ctx: Ctx = Depends(get_ctx)):
     return ok(data)
 
 @router.post("/like")
+@router.post("/like_post")
 def like(ctx: Ctx = Depends(get_ctx)):
     liked, count = PostService(ctx.db).toggle_like(ctx.user, ctx.p.int("id", required=True))
     return ok({"like": count, "is_liked": liked})

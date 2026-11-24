@@ -40,8 +40,7 @@ def main():
             data = resp.json()
             print(f"  [+] THÀNH CÔNG! (Status: {resp.status_code}, Phản hồi: {dt}s)")
             print(f"  [+] Trạng thái server : {data.get('status')}")
-            print(f"  [+] Nguồn Pose        : {data.get('source')}")
-            print(f"  [+] Lệnh trích xuất   : {data.get('command')}")
+            print(f"  [+] Chế độ            : {data.get('backend')} (nguồn {data.get('source')})")
         else:
             print(f"  [-] Thất bại: HTTP {resp.status_code} - {resp.text}")
             sys.exit(1)
@@ -78,28 +77,26 @@ def main():
     print(f"    Tệp: {os.path.basename(sample_video)} ({round(os.path.getsize(sample_video)/1024, 1)} KB)")
     print(f"    Đang xử lý trên GPU từ xa, vui lòng đợi...")
 
+    # Gửi đúng giao thức backend dùng: POST /jobs rồi hỏi trạng thái, kèm X-API-Key
+    from ai_engine.models.remote_estimator import RemotePoseEstimator
+    from ai_engine.pose_io import PoseNotAvailable
+    est = RemotePoseEstimator(target_url, timeout=settings.AI_REMOTE_TIMEOUT, api_key=settings.AI_REMOTE_API_KEY,
+                              poll_interval=settings.AI_REMOTE_POLL_INTERVAL)
     try:
         t0 = time.time()
-        with open(sample_video, "rb") as f:
-            files = {"file": (os.path.basename(sample_video), f, "video/mp4")}
-            resp = httpx.post(f"{target_url}/extract", files=files, timeout=300)
+        pose = est.extract_poses(sample_video)
         dt = round(time.time() - t0, 2)
-
-        if resp.status_code == 200:
-            result = resp.json()
-            joints = result.get("joints_3d", [])
-            print(f"  [+] TRÍCH XUẤT THÀNH CÔNG! (Tổng thời gian: {dt}s)")
-            print(f"  [+] Số khung hình trích xuất : {len(joints)} frames")
-            print(f"  [+] FPS video                : {result.get('fps')}")
-            print(f"  [+] Nguồn xử lý              : {result.get('source')}")
-            print(f"  [+] Thời gian GPU xử lý      : {result.get('seconds')}s")
-            print("\n" + "=" * 65)
-            print("[SUCCESS] CHÚC MỪNG! Pipeline AI từ xa hoạt động hoàn hảo 100%!")
-            print("=" * 65)
-        else:
-            print(f"  [-] Thất bại: HTTP {resp.status_code} - {resp.text}")
-    except Exception as e:
-        print(f"  [-] Lỗi trong quá trình trích xuất: {e}")
+        print(f"  [+] TRÍCH XUẤT THÀNH CÔNG! (Tổng thời gian: {dt}s)")
+        print(f"  [+] Khớp 3D                  : {pose['joints_3d'].shape[0]} frames x {pose['joints_3d'].shape[1]} khớp")
+        print(f"  [+] FPS video                : {pose['fps']}")
+        print(f"  [+] Nguồn xử lý              : {pose['source']}")
+        print("\n" + "=" * 65)
+        print("[SUCCESS] Pipeline AI từ xa hoạt động!")
+        print("=" * 65)
+    except PoseNotAvailable as e:
+        print(f"  [-] Thất bại: {e}")
+        if "401" in str(e):
+            print("  [-] Sai khóa: đặt AI_REMOTE_API_KEY trong .env bằng POSE_SERVER_KEY mà notebook Colab in ra.")
 
 if __name__ == "__main__":
     main()

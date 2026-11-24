@@ -106,6 +106,9 @@ app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 # Đăng ký Router V1 (REST) và bộ API theo đúng đặc tả restful_api (POST /api/<tên_api>)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(spec_router, prefix=settings.API_SPEC_STR, tags=["API theo đặc tả"])
+# Cùng bộ API dưới prefix của server 20252 để client cũ (Pose_Tracking, Postman IT4788) gọi được không cần sửa
+if settings.API_COMPAT_STR:
+    app.include_router(spec_router, prefix=settings.API_COMPAT_STR, include_in_schema=False)
 
 @app.get("/")
 def root():
