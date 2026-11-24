@@ -1,0 +1,20 @@
+# Frontend Dockerfile: Node.js 18 Next.js
+FROM node:18-alpine AS base
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+
+RUN npm install
+
+COPY . .
+
+# Build Next.js
+RUN npm run build
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["npm", "start"]

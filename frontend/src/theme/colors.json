@@ -1,0 +1,22 @@
+{
+  "ui": {
+    "blue": "#2563EB",
+    "blueHover": "#3B82F6",
+    "blueLight": "#1E3A8A",
+    "bg": "#020617",
+    "card": "#0F172A",
+    "border": "#334155",
+    "divider": "#1E293B",
+    "hover": "#1E293B",
+    "text": "#F1F5F9",
+    "textSecondary": "#94A3B8",
+    "textMuted": "#64748B",
+    "green": "#059669",
+    "greenHover": "#10B981",
+    "red": "#F43F5E",
+    "orange": "#F59E0B",
+    "like": "#F43F5E",
+    "botBg": "#172554",
+    "overlay": "rgba(0,0,0,0.8)"
+  }
+}

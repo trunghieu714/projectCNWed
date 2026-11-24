@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / Next.js
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+frontend/out/
+frontend/build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Databases & local env files
+*.db
+*.sqlite3
+app.db
+backend/app.db
+.env
+backend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Storage & media files
+storage/
+backend/storage/*
+!backend/storage/coach_samples/
+!backend/storage/coach_samples/.gitkeep
+!backend/storage/outputs/
+!backend/storage/outputs/.gitkeep
+!backend/storage/uploads/
+!backend/storage/uploads/.gitkeep
+!backend/storage/pose_cache/
+!backend/storage/pose_cache/.gitkeep
+!backend/storage/avatars/
+!backend/storage/avatars/.gitkeep
+*.mp4
+*.avi
+*.mov
+*.m4v
+*.pkl
+*.pt
+*.npz
+*.npy
+
+# IDE & OS temporary files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+wget-log

@@ -1,0 +1,92 @@
+services:
+  # 0. PostgreSQL Database Server
+  postgres:
+    image: postgres:15-alpine
+    container_name: skill_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: skill_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d skill_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # 1. FastAPI Web Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skill_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./backend/storage:/app/storage
+    environment:
+      - DATABASE_URL=postgresql://postgres:password123@postgres:5432/skill_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - AI_ESTIMATOR_TYPE=${AI_ESTIMATOR_TYPE:-precomputed,remote,mock}
+      - AI_REMOTE_URL=${AI_REMOTE_URL:-}
+      - PYTHONPATH=/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # 2. Celery Worker (Xử lý ngầm các tác vụ video AI)
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skill_celery_worker
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info --concurrency=1
+    volumes:
+      - ./backend:/app
+      - ./backend/storage:/app/storage
+    environment:
+      - DATABASE_URL=postgresql://postgres:password123@postgres:5432/skill_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - AI_ESTIMATOR_TYPE=${AI_ESTIMATOR_TYPE:-precomputed,remote,mock}
+      - AI_REMOTE_URL=${AI_REMOTE_URL:-}
+      - PYTHONPATH=/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+
+  # 3. Redis Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: skill_redis
+    ports:
+      - "6379:6379"
+
+  # 4. Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: skill_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
