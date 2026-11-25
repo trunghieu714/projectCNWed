@@ -16,6 +16,8 @@ export interface SubmissionResponse {
   student_video_url: string;
   coach_video_url?: string;
   fused_video_url?: string;
+  /** Báo cáo HTML đầy đủ: danh sách lỗi + khung xương 3D HLV - HV xoay được */
+  report_html_url?: string | null;
   status: SubmissionStatus;
   score?: number;
   feedback_text?: string;

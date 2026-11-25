@@ -169,7 +169,7 @@ export default function ExerciseDetailPage() {
             </div>
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-purple-400" />
-              <span>Chuẩn dữ liệu: TCPFormer 3D Pose</span>
+              <span>Chuẩn dữ liệu: GVHMR 3D Pose</span>
             </div>
           </div>
         </div>

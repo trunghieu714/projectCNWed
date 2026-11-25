@@ -132,6 +132,67 @@ def test_full_exercise_flow():
     r = api("add_post", other["token"], files={"left_video": video()}, exercise_id=ex_post_id, described="thử")
     assert r.json()["code"] == "1000" and r.json()["data"]["submission_id"] is None
 
+def _result_zip(score=77.5, html="<h1>Lỗi cổ tay phải</h1>", drop=None):
+    import io
+    import json
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        if drop != "report.html":
+            zf.writestr("report.html", html)
+        if drop != "result.json":
+            zf.writestr("result.json", json.dumps({"score": score, "summary": "Chấm bằng GVHMR trên Colab"}))
+    return ("result.zip", buf.getvalue(), "application/zip")
+
+def test_grading_result_zip():
+    """Slide 8: kết quả chấm được đóng gói result.zip; phần mềm chấm bên ngoài gửi zip lên bằng set_grading_result."""
+    import io
+    import zipfile
+    s = suffix()
+    gv, hv, other = register("GV", f"gvz{s}"), register("HV", f"hvz{s}"), register("HV", f"hvo{s}")
+    ex_post_id = api("add_post", gv["token"], files={"left_video": video()}, described="Bài mẫu").json()["data"]["id"]
+    api("set_request_course", hv["token"], course_id=gv["id"])
+    api("set_approve_enrollment", gv["token"], user_id=hv["id"], is_accept=1)
+    r = api("add_post", hv["token"], files={"left_video": video("hv.mp4", VIDEO_2)},
+            course_id=gv["id"], exercise_id=ex_post_id, described="Em nộp bài")
+    sub_post_id = r.json()["data"]["id"]
+
+    # Server tự chấm xong -> có result.zip tải được qua /storage
+    res = api("get_grading_result", hv["token"], id=sub_post_id).json()
+    assert res["code"] == "1000", res
+    zf = zipfile.ZipFile(io.BytesIO(client.get(res["data"]["url"]).content))
+    assert {"report.html", "result.json"} <= set(zf.namelist())
+    # Báo cáo đầy đủ (zip + link "Xem 3D") có khung xương 3D; bình luận điểm chỉ giữ bản gọn
+    assert "class=sk3d" in zf.read("report.html").decode("utf-8")
+    assert "class=sk3d" in client.get(res["data"]["report_url"]).text
+    skeleton = client.get(res["data"]["skeleton_url"]).json()           # trang web vẽ khung xương 3D cạnh video
+    assert skeleton["sides"]["left"]["frames"] and skeleton["sides"]["left"]["bones"]
+    bot = [c for c in api("get_comment", hv["token"], id=sub_post_id).json()["data"] if c["is_bot_evaluation"]][0]
+    assert "class=sk3d" not in bot["detail_mistakes"] and "Xem 3D" in bot["detail_mistakes"]
+    assert abs(__import__("json").loads(zf.read("result.json"))["score"] - res["data"]["score"]) < 1e-6
+    assert api("get_grading_result", other["token"], id=sub_post_id).json()["code"] == "1009"
+    assert api("get_grading_result", gv["token"], id=ex_post_id).json()["code"] == "1004"  # không phải bài nộp
+
+    # Chỉ GV ra bài (hoặc admin) được gửi kết quả; zip sai cấu trúc bị từ chối
+    assert api("set_grading_result", hv["token"], id=sub_post_id, files={"result": _result_zip()}).json()["code"] == "1009"
+    assert api("set_grading_result", gv["token"], id=sub_post_id).json()["code"] == "1002"
+    assert api("set_grading_result", gv["token"], id=sub_post_id, files={"result": _result_zip(drop="result.json")}).json()["code"] == "1004"
+    assert api("set_grading_result", gv["token"], id=sub_post_id, files={"result": _result_zip(score=150)}).json()["code"] == "1004"
+    assert api("set_grading_result", gv["token"], id=sub_post_id,
+               files={"result": ("result.zip", b"not a zip", "application/zip")}).json()["code"] == "1004"
+
+    r = api("set_grading_result", gv["token"], id=sub_post_id, files={"result": _result_zip()}).json()
+    assert r["code"] == "1000" and r["data"]["score"] == 77.5
+    # report.html gửi lên không có khung xương 3D -> không còn hiển thị khung xương của lần chấm trước
+    assert api("get_grading_result", hv["token"], id=sub_post_id).json()["data"]["skeleton_url"] is None
+    bots = [c for c in api("get_comment", hv["token"], id=sub_post_id).json()["data"] if c["is_bot_evaluation"]]
+    assert len(bots) == 1 and bots[0]["score"] == 77.5 and bots[0]["detail_mistakes"] == "<h1>Lỗi cổ tay phải</h1>"
+    sub_id = api("get_post", hv["token"], id=sub_post_id).json()["data"]["submission_id"]
+    assert api("get_submission", hv["token"], id=sub_id).json()["data"]["score"] == 77.5
+    # Tải lại đúng file zip vừa gửi
+    url = api("get_grading_result", hv["token"], id=sub_post_id).json()["data"]["url"]
+    assert zipfile.ZipFile(io.BytesIO(client.get(url).content)).read("report.html").decode() == "<h1>Lỗi cổ tay phải</h1>"
+
 def test_edit_post_video_indices_rules():
     hv = register("HV", f"hve{suffix()}")
     post_id = api("add_post", hv["token"], files={"left_video": video()}, described="bài 1").json()["data"]["id"]

@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, MessageSquare, Award, Play, User as UserIcon, Share2, Bot, Send, Video, MoreHorizontal, Pencil, Trash2, Flag, Ban, UploadCloud, FileText } from "lucide-react";
+import { Heart, MessageSquare, Award, Play, User as UserIcon, Share2, Bot, Send, Video, MoreHorizontal, Pencil, Trash2, Flag, Ban, UploadCloud, FileText, Download, Axis3d } from "lucide-react";
 import { Post, CommentItem } from "../../types/post";
 import { postService } from "../../services/apiClient";
 import { call, errorMessage, mediaUrl } from "../../services/api";
 import { emojify } from "../../lib/emoticons";
 import { useAuth } from "../../hooks/useAuth";
 import { Modal, ReportFrame } from "../common/ui";
+import { Skeleton3DViewer } from "../player/Skeleton3DViewer";
 import { VideoPostModal } from "./VideoPostModal";
 
 interface PostCardProps {
@@ -37,6 +38,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post: initialPost, onRemoved
   const [reportSubject, setReportSubject] = useState<string>(REPORT_SUBJECTS[0]);
   const [reportDetails, setReportDetails] = useState<string>("");
   const [detailHtml, setDetailHtml] = useState<string | null>(null);
+  const [skeletonUrl, setSkeletonUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -95,6 +97,34 @@ export const PostCard: React.FC<PostCardProps> = ({ post: initialPost, onRemoved
     try {
       setPost(await call<Post>("get_post", { id: post.id }));
     } catch {}
+  };
+
+  // Slide 8: tải result.zip (report.html + result.json + video ghép) của bài nộp
+  const downloadResultZip = async () => {
+    const tab = window.open("", "_blank");   // mở tab ngay trong lúc click để không bị chặn popup
+    try {
+      const res = await call<{ url: string }>("get_grading_result", { id: post.id });
+      if (tab) tab.location.href = mediaUrl(res.url);
+      else window.open(mediaUrl(res.url), "_blank");
+    } catch (err) {
+      tab?.close();
+      setError(errorMessage(err));
+    }
+  };
+
+  // Khung xương 3D HLV - HV hiện ngay dưới bình luận điểm (bấm lần nữa để ẩn)
+  const toggleSkeleton3D = async () => {
+    if (skeletonUrl) {
+      setSkeletonUrl(null);
+      return;
+    }
+    try {
+      const res = await call<{ skeleton_url?: string | null }>("get_grading_result", { id: post.id });
+      if (!res.skeleton_url) throw new Error("no-skeleton");
+      setSkeletonUrl(res.skeleton_url);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
   };
 
   const handleDelete = async () => {
@@ -341,6 +371,23 @@ export const PostCard: React.FC<PostCardProps> = ({ post: initialPost, onRemoved
                 >
                   <FileText className="w-3.5 h-3.5" /> Xem chi tiết lỗi
                 </button>
+              )}
+              {cmt.is_bot_evaluation && cmt.score != null && (
+                <>
+                  <button
+                    onClick={toggleSkeleton3D}
+                    className="mt-2 ml-2 inline-flex items-center gap-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 px-2.5 py-1 rounded-lg font-semibold transition"
+                  >
+                    <Axis3d className="w-3.5 h-3.5" /> {skeletonUrl ? "Ẩn 3D" : "Xem 3D"}
+                  </button>
+                  <button
+                    onClick={downloadResultZip}
+                    className="mt-2 ml-2 inline-flex items-center gap-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 px-2.5 py-1 rounded-lg font-semibold transition"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Tải kết quả (.zip)
+                  </button>
+                  {skeletonUrl && <div className="mt-3"><Skeleton3DViewer url={skeletonUrl} /></div>}
+                </>
               )}
             </div>
           ))}

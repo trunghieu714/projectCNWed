@@ -19,6 +19,17 @@ MAX_SCORING_FRAMES = 400
 
 def batched_pa_joint_errors(ref: np.ndarray, stu: np.ndarray) -> np.ndarray:
     """ref, stu: (K, J, 3) -> sai số từng khớp sau căn chỉnh Procrustes (K, J)."""
+    aligned, valid = batched_procrustes_align(ref, stu)
+    err = np.linalg.norm(ref - aligned, axis=-1)
+    # Frame suy biến (mọi khớp trùng nhau) -> so sánh trực tiếp sau khi trừ tâm
+    if not valid.all():
+        x = ref - ref.mean(axis=1, keepdims=True)
+        y = stu - stu.mean(axis=1, keepdims=True)
+        err[~valid] = np.linalg.norm(x[~valid] - y[~valid], axis=-1)
+    return err
+
+def batched_procrustes_align(ref: np.ndarray, stu: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Căn stu (K, J, 3) về ref bằng tịnh tiến + quay + tỉ lệ -> (stu đã căn, mặt nạ frame hợp lệ (K,))."""
     mu_r = ref.mean(axis=1, keepdims=True)
     mu_s = stu.mean(axis=1, keepdims=True)
     x = ref - mu_r
@@ -38,11 +49,7 @@ def batched_pa_joint_errors(ref: np.ndarray, stu: np.ndarray) -> np.ndarray:
     r = u @ vt
     scale = s.sum(axis=1)[:, None, None]
     aligned = scale * np.einsum("kji,kil->kjl", yn, r) * nx_s + mu_r
-    err = np.linalg.norm(ref - aligned, axis=-1)
-    # Frame suy biến (mọi khớp trùng nhau) -> so sánh trực tiếp sau khi trừ tâm
-    if not valid.all():
-        err[~valid] = np.linalg.norm(x[~valid] - y[~valid], axis=-1)
-    return err
+    return aligned, valid
 
 def _subsample(seq: np.ndarray, max_len: int) -> Tuple[np.ndarray, np.ndarray]:
     if len(seq) <= max_len:

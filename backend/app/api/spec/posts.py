@@ -1,13 +1,17 @@
 """Nhóm API bài viết: add_post, edit_post, delete_post, get_post, get_list_posts, get_comment,
-set_comment, like, report_post, search, get_saved_search, del_saved_search, check_new_item, get_submission."""
+set_comment, like, report_post, search, get_saved_search, del_saved_search, check_new_item, get_submission,
+set_grading_result / get_grading_result (gửi / tải file zip kết quả chấm - Slide 8)."""
 import json
+import os
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from ...core.errors import ApiError, no_access, ok
-from ...models.entities import Submission, UserRole
+from ...core.errors import ApiError, no_access, ok, param_invalid, param_missing
+from ...models.entities import SocialPost, Submission, UserRole
+from ...services.grading_result import MAX_ZIP_BYTES, REPORT_NAME, SKELETON_NAME, apply_result_zip, ensure_result_zip
 from ...services.post_service import PostService
 from ...services.serializers import iso, submission_brief
+from ...services.video_service import to_url
 from .params import Ctx, get_ctx
 
 router = APIRouter()
@@ -123,3 +127,47 @@ def get_submission(ctx: Ctx = Depends(get_ctx)):
     data["exercise_title"] = exercise.title if exercise else None
     data["post_id"] = sub.post.id if sub.post else None
     return ok(data)
+
+def _submission_post(ctx: Ctx) -> SocialPost:
+    post = ctx.db.get(SocialPost, ctx.p.int("id", required=True))
+    if not post:
+        raise ApiError("9992", "Bài viết không tồn tại.", 404)
+    if not post.submission:
+        raise param_invalid("Bài viết này không phải bài nộp của học viên.")
+    return post
+
+@router.post("/set_grading_result")
+def set_grading_result(ctx: Ctx = Depends(get_ctx)):
+    """
+    Slide 8: phần mềm chấm (PC có GPU / Colab) gửi file zip kết quả lên server.
+    Input: token (GV ra bài tập hoặc admin), id (bài nộp của HV), result (file zip: report.html, result.json
+    có score 0-100, tùy chọn fused.mp4). Thay bình luận điểm cũ của bot bằng kết quả mới.
+    """
+    user = ctx.user
+    post = _submission_post(ctx)
+    exercise = post.submission.exercise
+    if user.role != UserRole.ADMIN and (not exercise or exercise.created_by != user.id):
+        raise no_access("Chỉ giáo viên ra bài tập hoặc quản trị viên được gửi kết quả chấm.")
+    upload = ctx.p.file("result")
+    if upload is None:
+        raise param_missing("result")
+    data = upload.file.read(MAX_ZIP_BYTES + 1)
+    return ok(apply_result_zip(ctx.db, post, data), "Đã cập nhật kết quả chấm.")
+
+@router.post("/get_grading_result")
+def get_grading_result(ctx: Ctx = Depends(get_ctx)):
+    """Link tải result.zip (report.html + result.json + video ghép) của một bài nộp. Input: token, id (bài nộp)."""
+    user = ctx.user
+    post = _submission_post(ctx)
+    sub = post.submission
+    exercise = sub.exercise
+    if user.id != sub.student_id and user.role != UserRole.ADMIN and (not exercise or exercise.created_by != user.id):
+        raise no_access()
+    path = ensure_result_zip(sub)
+    if not path:
+        raise ApiError("9994", "Bài nộp chưa có kết quả chấm.")
+    report = os.path.join(os.path.dirname(path), REPORT_NAME)
+    skeleton = os.path.join(os.path.dirname(path), SKELETON_NAME)
+    return ok({"id": post.id, "submission_id": sub.id, "score": sub.score, "url": to_url(path),
+               "size": os.path.getsize(path), "report_url": to_url(report) if os.path.isfile(report) else None,
+               "skeleton_url": to_url(skeleton) if os.path.isfile(skeleton) else None})

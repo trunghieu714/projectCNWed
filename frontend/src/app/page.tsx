@@ -200,8 +200,8 @@ export default function HomePage() {
             </h1>
 
             <p className="max-w-2xl mx-auto text-base md:text-lg text-slate-400 leading-relaxed">
-              Hệ thống chấm điểm động tác qua video tự động: Trích xuất Pose 3D (TCPFormer), 
-              đồng bộ hóa phi tuyến tính thời gian thực (FastDTW), phát hiện sai lệch góc khớp và chia sẻ cộng đồng.
+              Hệ thống chấm điểm động tác qua video tự động: Trích xuất Pose 3D (GVHMR),
+              đồng bộ hóa phi tuyến tính theo thời gian (DTW trên PA-MPJPE), phát hiện sai lệch góc khớp và chia sẻ cộng đồng.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">

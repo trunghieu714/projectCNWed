@@ -15,6 +15,8 @@ interface DualVideoPlayerProps {
   feedback?: string;
   warpingPath?: [number, number][];
   errors?: FrameError[];
+  /** Báo giây hiện tại của video HV (để khung xương 3D đi theo video) */
+  onTimeChange?: (seconds: number) => void;
 }
 
 export const DualVideoPlayer: React.FC<DualVideoPlayerProps> = ({
@@ -25,6 +27,7 @@ export const DualVideoPlayer: React.FC<DualVideoPlayerProps> = ({
   feedback,
   warpingPath,
   errors = [],
+  onTimeChange,
 }) => {
   const [viewMode, setViewMode] = useState<"dual" | "fused">("dual");
   const {
@@ -42,6 +45,10 @@ export const DualVideoPlayer: React.FC<DualVideoPlayerProps> = ({
     warpingPath,
     fps: 30,
   });
+
+  useEffect(() => {
+    onTimeChange?.(currentTime);
+  }, [currentTime, onTimeChange]);
 
   // Bắn pháo hoa ăn mừng khi điểm cao
   useEffect(() => {

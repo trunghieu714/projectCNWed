@@ -49,7 +49,7 @@ def main():
         print("  [-] Vui lòng kiểm tra lại notebook Colab và URL tunnel.")
         sys.exit(1)
 
-    # 2. Extract pose check (POST /extract)
+    # 2. Extract pose check (POST /jobs, fallback POST /extract)
     # Ưu tiên dùng video quay người thật thay vì video người que vẽ nét
     import glob
     real_vids = [
@@ -73,7 +73,7 @@ def main():
         print("\n[+] Health check thành công! Server sẵn sàng nhận video.")
         return
 
-    print(f"\n[2/2] Gửi video mẫu để trích xuất Pose 3D (POST /extract)...")
+    print(f"\n[2/2] Gửi video mẫu để trích xuất Pose 3D (POST /jobs, giống backend)...")
     print(f"    Tệp: {os.path.basename(sample_video)} ({round(os.path.getsize(sample_video)/1024, 1)} KB)")
     print(f"    Đang xử lý trên GPU từ xa, vui lòng đợi...")
 

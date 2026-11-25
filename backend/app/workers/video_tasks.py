@@ -11,6 +11,7 @@ from ..repositories.comment_repository import CommentRepository
 from ..models.entities import SocialPost
 from ..services.notification_service import NotificationService
 from ..services.video_service import to_url
+from ..services.grading_result import build_result_zip, score_comment_text
 from ai_engine.factory import AIEngineFactory
 
 def resolve_storage_path(path: Optional[str]) -> str:
@@ -104,17 +105,17 @@ def process_submission_core(submission_id: int, task_id: Optional[str] = None):
         }
         sub.result_json = json.dumps(detail, ensure_ascii=False, default=_json_default)
         db.commit()
+        # Slide 8: gói kết quả (report.html + result.json + video ghép) thành result.zip để tải về / gửi đi
+        with open(result["report_path"], encoding="utf-8") as f:
+            full_report = f.read()   # bản đầy đủ kèm khung xương 3D (detail_mistakes chỉ giữ bản gọn)
+        build_result_zip(submission_id, full_report,
+                         json.loads(json.dumps({**detail, "summary": feedback}, default=_json_default)),
+                         result.get("fused_video_url"))
 
         # 🤖 AI AUTO-COMMENT BOT (FAQ Q3 & Slide 42): comment điểm số vào bài viết của Học viên
         if post:
-            rating_str = "XUẤT SẮC" if score >= 90 else ("ĐẠT YÊU CẦU" if score >= 75 else "CẦN LUYỆN TẬP THÊM")
-            bot_comment_text = (
-                f"🤖 [KẾT QUẢ ĐÁNH GIÁ ĐỘNG TÁC TỰ ĐỘNG - AI BOT]\n"
-                f"⭐ Điểm số: {score:.1f}/100 ({rating_str})\n"
-                f"📋 Nhận xét: {feedback}\n"
-                f"🎬 Video đối chiếu: Đã đồng bộ side-by-side theo warping path DTW. Xem báo cáo chi tiết lỗi bên dưới."
-            )
-            comment = comment_repo.create(post_id=post.id, user_id=None, content=bot_comment_text, is_bot_evaluation=True)
+            comment = comment_repo.create(post_id=post.id, user_id=None, content=score_comment_text(score, feedback),
+                                          is_bot_evaluation=True)
             comment.score = score
             comment.detail_mistakes = result.get("report_html")
             db.commit()

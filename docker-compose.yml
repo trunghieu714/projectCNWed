@@ -36,6 +36,7 @@ services:
       - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
       - AI_ESTIMATOR_TYPE=${AI_ESTIMATOR_TYPE:-precomputed,remote,mock}
       - AI_REMOTE_URL=${AI_REMOTE_URL:-}
+      - AI_REMOTE_API_KEY=${AI_REMOTE_API_KEY:-}
       - PYTHONPATH=/app
     depends_on:
       postgres:
@@ -59,6 +60,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - AI_ESTIMATOR_TYPE=${AI_ESTIMATOR_TYPE:-precomputed,remote,mock}
       - AI_REMOTE_URL=${AI_REMOTE_URL:-}
+      - AI_REMOTE_API_KEY=${AI_REMOTE_API_KEY:-}
       - PYTHONPATH=/app
     depends_on:
       postgres:

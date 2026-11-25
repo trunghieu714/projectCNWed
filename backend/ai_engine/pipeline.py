@@ -9,7 +9,8 @@ from .base.scorer import BaseScorer
 from .base.visualizer import BaseVisualizer
 from .factory import AIEngineFactory
 from .pose_io import PoseCache, build_pose_result
-from .visualizers.html_report import HtmlReportRenderer
+from .visualizers.html_report import HtmlReportRenderer, write_skeleton_json
+from .visualizers.skeleton_3d import build_viewer_data
 
 logger = logging.getLogger(__name__)
 SIDES = ("left", "right")
@@ -40,13 +41,18 @@ class SkillAssessmentPipeline:
 
     # ------------------------------------------------------------------------------------------
     def extract(self, video_path: str, use_cache: bool = False) -> Dict[str, Any]:
-        """Trích xuất pose; pose video HLV được cache để dùng lại cho mọi bài nộp."""
+        """
+        Trích xuất pose; pose video HLV được cache để dùng lại cho mọi bài nộp.
+        Pose giả lập (mock - khi server AI từ xa lỗi) không được cache, để lần chấm sau khi Colab chạy lại
+        vẫn trích xuất pose thật thay vì dùng mãi pose giả.
+        """
         if use_cache and self.pose_cache:
             cached = self.pose_cache.load(video_path, self.estimator.model_name)
-            if cached is not None:
+            if cached is not None and not str(cached.get("source", "")).startswith("mock"):
                 return cached
         pose = self.estimator.extract_poses(video_path)
-        if use_cache and self.pose_cache and pose.get("joints_3d") is not None:
+        if use_cache and self.pose_cache and pose.get("joints_3d") is not None \
+                and not str(pose.get("source", "")).startswith("mock"):
             try:
                 self.pose_cache.save(video_path, self.estimator.model_name, pose)
             except Exception as e:
@@ -88,6 +94,19 @@ class SkillAssessmentPipeline:
         }
         result["output_fps"] = float(student_pose.get("fps") or 25.0)
 
+    @staticmethod
+    def _viewer_data(res: Dict[str, Any], coach_pose: Dict[str, Any], student_pose: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Dữ liệu trình xem khung xương 3D cho một góc quay; lỗi dựng dữ liệu không được làm hỏng việc chấm."""
+        try:
+            fps = float(student_pose.get("fps") or 25.0)
+            frame_map = student_pose.get("frame_indices") or range(len(student_pose.get("joints_3d") or []))
+            return build_viewer_data(coach_pose.get("joints_3d"), student_pose.get("joints_3d"),
+                                     res.get("warping_path", []), res.get("tolerance", 0.12),
+                                     student_frame_times=[f / fps for f in frame_map])
+        except Exception as e:
+            logger.warning("Không dựng được khung xương 3D cho báo cáo: %s", e)
+            return None
+
     # ------------------------------------------------------------------------------------------
     def run_multi_view_assessment(
         self,
@@ -111,6 +130,7 @@ class SkillAssessmentPipeline:
         coach_poses = {s: self.extract(coach_paths[s], use_cache=True) for s in student_sides}
 
         sides: Dict[str, Dict[str, Any]] = {}
+        compared: Dict[str, tuple] = {}   # góc quay -> (pose HLV, pose HV) đã đem so, cho trình xem 3D
         fused_student = self._try_fusion(student_poses) if len(student_sides) == 2 else None
         fused_coach = self._try_fusion(coach_poses) if fused_student and coach_videos.get("right") else None
         if fused_student is not None:
@@ -119,12 +139,14 @@ class SkillAssessmentPipeline:
             res["pose_source"] = fused_student["source"]
             self._to_video_frames(res, coach_ref, fused_student)
             sides["fused"] = res
+            compared["fused"] = (coach_ref, fused_student)
         else:
             for s in student_sides:
                 res = self.scorer.evaluate(coach_poses[s], student_poses[s])
                 res["pose_source"] = student_poses[s].get("source", self.estimator.model_name)
                 self._to_video_frames(res, coach_poses[s], student_poses[s])
                 sides[s] = res
+                compared[s] = (coach_poses[s], student_poses[s])
 
         final_score = round(float(np.mean([r["final_score"] for r in sides.values()])), 1)
         primary_side = next(iter(sides))
@@ -159,7 +181,10 @@ class SkillAssessmentPipeline:
             "sides": sides,
         }
         report_path = os.path.join(output_dir, "report.html")
-        result["report_html"] = self.report_renderer.render(result, report_path, title=title)
+        viewers = {s: self._viewer_data(sides[s], *compared[s]) for s in sides}
+        result["report_html"] = self.report_renderer.render(result, report_path, title=title, viewers=viewers)
+        # Dữ liệu khung xương 3D riêng để trang web vẽ cạnh video (đi theo thời gian video)
+        result["skeleton_path"] = write_skeleton_json(os.path.join(output_dir, "skeleton3d.json"), viewers)
         result["report_path"] = report_path
         return result
 

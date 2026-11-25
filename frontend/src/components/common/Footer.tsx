@@ -12,7 +12,7 @@ export const Footer: React.FC = () => {
             </div>
             <div>
               <p className="text-white font-semibold text-sm">MotionAI Skill Assessment Platform</p>
-              <p className="text-xs text-slate-500">FastDTW • TCPFormer 3D Pose • Clean Architecture</p>
+              <p className="text-xs text-slate-500">DTW (PA-MPJPE) • GVHMR 3D Pose • Clean Architecture</p>
             </div>
           </div>
 
